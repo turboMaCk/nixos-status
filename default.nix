@@ -4,5 +4,5 @@
 }:
 with (import nixpkgs {});
 mkShell {
-  buildInputs = [ elmPackages.elm elm2nix ];
+  buildInputs = with elmPackages; [ elm elm-format elm2nix ];
 }
