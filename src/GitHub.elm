@@ -1,5 +1,18 @@
 module GitHub exposing (fetchIssues)
 
+{-|
+
+    GitHub Data Module
+
+We're using GitHub's GraphQL API but since we're
+doing only simple queries we not using real GraphQL library
+and instead just simply define string query.
+
+Nothe that GraphQL API requires authorization and thus
+we need to hardcode unpriviliged token.
+
+-}
+
 import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Extra as Decode
@@ -90,15 +103,32 @@ issueStateDecoder =
 type alias Issue =
     { number : Int
     , title : String
-    , createAt : String -- TODO: date
+    , createdAt : String -- TODO: date
     , updatedAt : String -- TODO: date
     , state : IssueState
     , url : String
     , text : String
     , labels : List Label
     , author : User
+    , commentsCount : Int
     , comments : List Comment
     }
+
+
+issueDecoder : Decoder Issue
+issueDecoder =
+    Decode.succeed Issue
+        |> Decode.andMap (Decode.field "number" Decode.int)
+        |> Decode.andMap (Decode.field "title" Decode.string)
+        |> Decode.andMap (Decode.field "createdAt" Decode.string)
+        |> Decode.andMap (Decode.field "updatedAt" Decode.string)
+        |> Decode.andMap (Decode.field "state" issueStateDecoder)
+        |> Decode.andMap (Decode.field "url" Decode.string)
+        |> Decode.andMap (Decode.field "text" Decode.string)
+        |> Decode.andMap (Decode.at [ "labels", "nodes" ] <| Decode.list labelDecoder)
+        |> Decode.andMap (Decode.field "author" userDecoder)
+        |> Decode.andMap (Decode.at [ "comments", "totalCount" ] Decode.int)
+        |> Decode.andMap (Decode.at [ "comments", "nodes" ] <| Decode.list commentDecoder)
 
 
 
@@ -123,9 +153,9 @@ query {
         url,
         bodyText,
         labels(first: 10) {
-        \tnodes {
+          nodes {
             name,
-      \t\t\tcolor,
+            tcolor,
           }
         },
         author {
