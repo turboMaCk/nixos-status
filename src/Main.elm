@@ -29,6 +29,7 @@ import GitHub exposing (Issue, IssueState(..))
 import Html exposing (Html)
 import Html.Attributes as Attrs
 import Markdown
+import Prometheus exposing (Alert, Group, Rule)
 import RemoteData exposing (RemoteData(..), WebData)
 
 
@@ -49,6 +50,7 @@ main =
 type alias Model =
     { openIssues : WebData (List Issue)
     , closedIssues : WebData (List Issue)
+    , alerts : WebData (List Group)
     }
 
 
@@ -56,10 +58,12 @@ init : () -> ( Model, Cmd Msg )
 init () =
     ( { openIssues = Loading
       , closedIssues = Loading
+      , alerts = Loading
       }
     , Cmd.batch
         [ GitHub.fetchIssues Open <| OpenIssuesLoaded << RemoteData.fromResult
         , GitHub.fetchIssues Closed <| ClosedIssuesLoaded << RemoteData.fromResult
+        , Prometheus.fetchGroups <| AlertsLoaded << RemoteData.fromResult
         ]
     )
 
@@ -70,6 +74,7 @@ init () =
 
 type Msg
     = NoOp
+    | AlertsLoaded (WebData (List Group))
     | OpenIssuesLoaded (WebData (List Issue))
     | ClosedIssuesLoaded (WebData (List Issue))
 
@@ -85,6 +90,13 @@ update msg model =
 
         ClosedIssuesLoaded data ->
             ( { model | closedIssues = data }, Cmd.none )
+
+        AlertsLoaded data ->
+            let
+                _ =
+                    Debug.log "res" data
+            in
+            ( { model | alerts = data }, Cmd.none )
 
 
 
@@ -102,6 +114,12 @@ fromMarkdown =
         , smartypants = True
         }
         []
+
+
+viewGroup : Group -> Html msg
+viewGroup group =
+    Html.div []
+        [ Html.h3 [] [ Html.text group.name ] ]
 
 
 viewIssue : Bool -> Issue -> Html Msg
@@ -123,7 +141,18 @@ view : Model -> Document Msg
 view model =
     { title = "NixOS Status"
     , body =
-        [ Html.h2 [] [ Html.text "Open Issues" ]
+        [ Html.h2 [] [ Html.text "Status" ]
+        , Html.div [] <|
+            case model.alerts of
+                Success groups ->
+                    List.map viewGroup groups
+
+                Failure err ->
+                    [ Html.text "err" ]
+
+                _ ->
+                    [ Html.text "Loading" ]
+        , Html.h2 [] [ Html.text "Open Issues" ]
         , Html.div [] <|
             case model.openIssues of
                 Success issues ->
@@ -134,7 +163,7 @@ view model =
 
                 _ ->
                     [ Html.text "xxx" ]
-        , Html.h2 [] [ Html.text "Issue History" ]
+        , Html.h2 [] [ Html.text "Past Issues" ]
         , Html.div [] <|
             case model.closedIssues of
                 Success issues ->

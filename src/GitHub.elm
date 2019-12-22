@@ -88,6 +88,7 @@ labels =
 type alias User =
     { login : String
     , avatarUrl : String
+    , url : String
     }
 
 
@@ -96,6 +97,7 @@ userDecoder =
     Decode.succeed User
         |> Decode.andMap (Decode.field "login" Decode.string)
         |> Decode.andMap (Decode.field "avatarUrl" Decode.string)
+        |> Decode.andMap (Decode.field "url" Decode.string)
 
 
 type alias Label =
@@ -191,12 +193,14 @@ issueDecoder =
 -- Query
 
 
+{-| Sorry for this mess
+-}
 query : IssueState -> String
 query state =
     String.concat
         [ """
-        query {
-            repository
+            query {
+                repository
         """
         , "(owner: "
         , Encode.encode 0 <| Encode.string repoOwner
@@ -205,9 +209,9 @@ query state =
         , ")"
         , """
             {
-            issues(
-            last: 30
-            labels:
+                issues(
+                last: 30
+                labels:
         """
         , Encode.encode 0 <| Encode.list Encode.string labels
         , ", states: ["
@@ -216,37 +220,39 @@ query state =
         , """
           {
             nodes {
-                number,
-                title,
-                createdAt,
-                updatedAt,
-                state,
-                url,
-                bodyHTML,
+                number
+                title
+                createdAt
+                updatedAt
+                state
+                url
+                bodyHTML
                 labels(first: 10) {
                 nodes {
-                    name,
-                    color,
+                    name
+                    color
                 }
-                },
+                }
                 author {
-                login,
-                avatarUrl,
-                },
-                comments(last: 10) {
-                totalCount,
-                nodes {
-                    author {
-                    login,
-                    avatarUrl,
-                    },
-                    bodyHTML,
+                    login
+                    avatarUrl
+                    url
                 }
-                },
-            }
+                comments(last: 10) {
+                    totalCount
+                    nodes {
+                        author {
+                            login
+                            avatarUrl
+                            url
+                        }
+                        bodyHTML
+                    }
+                }
             }
         }
-        }
+    }
+}
 """
         ]
 
