@@ -64,6 +64,23 @@ token =
     "e7f8cdd0e3311d2384929a09612b96d8d7758ccb"
 
 
+repoOwner : String
+repoOwner =
+    "NixOS"
+
+
+repoName : String
+repoName =
+    "nixpkgs"
+
+
+labels : List String
+labels =
+    [ "infrastructure"
+    , "1.severity: channel blocker"
+    ]
+
+
 
 -- Types
 
@@ -103,7 +120,7 @@ type alias Comment =
 commentDecoder : Decoder Comment
 commentDecoder =
     Decode.succeed Comment
-        |> Decode.andMap (Decode.field "bodyText" Decode.string)
+        |> Decode.andMap (Decode.field "bodyHTML" Decode.string)
         |> Decode.andMap (Decode.field "author" userDecoder)
 
 
@@ -127,6 +144,16 @@ issueStateDecoder =
                     Decode.fail <| "Unknown issue state " ++ str
     in
     Decode.andThen fromString Decode.string
+
+
+issueStateToString : IssueState -> String
+issueStateToString state =
+    case state of
+        Open ->
+            "OPEN"
+
+        Closed ->
+            "CLOSED"
 
 
 type alias Issue =
@@ -153,7 +180,7 @@ issueDecoder =
         |> Decode.andMap (Decode.field "updatedAt" Decode.string)
         |> Decode.andMap (Decode.field "state" issueStateDecoder)
         |> Decode.andMap (Decode.field "url" Decode.string)
-        |> Decode.andMap (Decode.field "bodyText" Decode.string)
+        |> Decode.andMap (Decode.field "bodyHTML" Decode.string)
         |> Decode.andMap (Decode.at [ "labels", "nodes" ] <| Decode.list labelDecoder)
         |> Decode.andMap (Decode.field "author" userDecoder)
         |> Decode.andMap (Decode.at [ "comments", "totalCount" ] Decode.int)
@@ -164,57 +191,75 @@ issueDecoder =
 -- Query
 
 
-query : String
-query =
-    """
-query {
-  repository(owner: "nixos", name: "nixpkgs") {
-    issues(
-      last: 30
-      labels: ["infrastructure", "1.severity: channel blocker"]
-    ) {
-      nodes {
-        number,
-        title,
-        createdAt,
-        updatedAt,
-        state,
-        url,
-        bodyText,
-        labels(first: 10) {
-          nodes {
-            name,
-            color,
-          }
-        },
-        author {
-          login,
-          avatarUrl,
-        },
-        comments(last: 10) {
-          totalCount,
-          nodes {
-            author {
-              login,
-              avatarUrl,
-            },
-            bodyText,
-          }
-        },
-      }
-    }
-  }
-}
+query : IssueState -> String
+query state =
+    String.concat
+        [ """
+        query {
+            repository
+        """
+        , "(owner: "
+        , Encode.encode 0 <| Encode.string repoOwner
+        , ", name: "
+        , Encode.encode 0 <| Encode.string repoName
+        , ")"
+        , """
+            {
+            issues(
+            last: 30
+            labels:
+        """
+        , Encode.encode 0 <| Encode.list Encode.string labels
+        , ", states: ["
+        , issueStateToString state
+        , "])"
+        , """
+          {
+            nodes {
+                number,
+                title,
+                createdAt,
+                updatedAt,
+                state,
+                url,
+                bodyHTML,
+                labels(first: 10) {
+                nodes {
+                    name,
+                    color,
+                }
+                },
+                author {
+                login,
+                avatarUrl,
+                },
+                comments(last: 10) {
+                totalCount,
+                nodes {
+                    author {
+                    login,
+                    avatarUrl,
+                    },
+                    bodyHTML,
+                }
+                },
+            }
+            }
+        }
+        }
 """
+        ]
 
 
-fetchIssues : (Result Http.Error (List Issue) -> msg) -> Cmd msg
-fetchIssues msg =
+fetchIssues : IssueState -> (Result Http.Error (List Issue) -> msg) -> Cmd msg
+fetchIssues state msg =
     Http.request
         { method = "POST"
         , headers = [ Http.header "authorization" <| "Bearer " ++ token ]
         , url = "https://api.github.com/graphql"
-        , body = Http.jsonBody <| Encode.object [ ( "query", Encode.string query ) ]
+        , body =
+            Http.jsonBody <|
+                Encode.object [ ( "query", Encode.string <| query state ) ]
         , expect =
             Http.expectJson msg <|
                 Decode.at [ "data", "repository", "issues", "nodes" ] <|

@@ -25,8 +25,10 @@
 module Main exposing (main)
 
 import Browser exposing (Document)
-import GitHub exposing (Issue)
+import GitHub exposing (Issue, IssueState(..))
 import Html exposing (Html)
+import Html.Attributes as Attrs
+import Markdown
 import RemoteData exposing (RemoteData(..), WebData)
 
 
@@ -45,13 +47,20 @@ main =
 
 
 type alias Model =
-    { issues : WebData (List Issue) }
+    { openIssues : WebData (List Issue)
+    , closedIssues : WebData (List Issue)
+    }
 
 
 init : () -> ( Model, Cmd Msg )
 init () =
-    ( { issues = Loading }
-    , GitHub.fetchIssues <| IssuesLoaded << RemoteData.fromResult
+    ( { openIssues = Loading
+      , closedIssues = Loading
+      }
+    , Cmd.batch
+        [ GitHub.fetchIssues Open <| OpenIssuesLoaded << RemoteData.fromResult
+        , GitHub.fetchIssues Closed <| ClosedIssuesLoaded << RemoteData.fromResult
+        ]
     )
 
 
@@ -61,7 +70,8 @@ init () =
 
 type Msg
     = NoOp
-    | IssuesLoaded (WebData (List Issue))
+    | OpenIssuesLoaded (WebData (List Issue))
+    | ClosedIssuesLoaded (WebData (List Issue))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -70,29 +80,70 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
-        IssuesLoaded data ->
-            ( { model | issues = data }, Cmd.none )
+        OpenIssuesLoaded data ->
+            ( { model | openIssues = data }, Cmd.none )
+
+        ClosedIssuesLoaded data ->
+            ( { model | closedIssues = data }, Cmd.none )
 
 
 
 -- View
 
 
+{-| Configured toMarkdown function
+-}
+fromMarkdown : String -> Html msg
+fromMarkdown =
+    Markdown.toHtmlWith
+        { githubFlavored = Just { tables = True, breaks = True }
+        , defaultHighlighting = Just "nix"
+        , sanitize = False
+        , smartypants = True
+        }
+        []
+
+
+viewIssue : Bool -> Issue -> Html Msg
+viewIssue isOpen issue =
+    Html.div []
+        [ Html.a [ Attrs.href issue.url ] [ Html.text <| "#" ++ String.fromInt issue.number ]
+        , Html.text ": "
+        , Html.text issue.title
+        , Html.br [] []
+        , if isOpen then
+            fromMarkdown issue.text
+
+          else
+            Html.text ""
+        ]
+
+
 view : Model -> Document Msg
 view model =
     { title = "NixOS Status"
     , body =
-        case model.issues of
-            Success issues ->
-                List.map (\{ number, title } -> Html.div [] [ Html.text <| String.fromInt number, Html.text ":", Html.text title, Html.br [] [] ]) issues
+        [ Html.h2 [] [ Html.text "Open Issues" ]
+        , Html.div [] <|
+            case model.openIssues of
+                Success issues ->
+                    List.map (viewIssue True) issues
 
-            Failure err ->
-                let
-                    _ =
-                        Debug.log "err" err
-                in
-                [ Html.text "err" ]
+                Failure err ->
+                    [ Html.text "err" ]
 
-            _ ->
-                [ Html.text "xxx" ]
+                _ ->
+                    [ Html.text "xxx" ]
+        , Html.h2 [] [ Html.text "Issue History" ]
+        , Html.div [] <|
+            case model.closedIssues of
+                Success issues ->
+                    List.map (viewIssue False) issues
+
+                Failure err ->
+                    [ Html.text "err" ]
+
+                _ ->
+                    [ Html.text "xxx" ]
+        ]
     }
