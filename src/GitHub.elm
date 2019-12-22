@@ -1,15 +1,44 @@
-module GitHub exposing (fetchIssues)
+{-
+   Copyright (c) 2019 Marek Fajkus
 
-{-|
+   Permission is hereby granted, free of charge, to any person obtaining
+   a copy of this software and associated documentation files (the
+   "Software"), to deal in the Software without restriction, including
+   without limitation the rights to use, copy, modify, merge, publish,
+   distribute, sublicense, and/or sell copies of the Software, and to
+   permit persons to whom the Software is furnished to do so, subject to
+   the following conditions:
 
-    GitHub Data Module
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
 
-We're using GitHub's GraphQL API but since we're
-doing only simple queries we not using real GraphQL library
-and instead just simply define string query.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+   LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+   OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+   WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-}
 
-Nothe that GraphQL API requires authorization and thus
-we need to hardcode unpriviliged token.
+
+module GitHub exposing
+    ( Comment
+    , Issue
+    , IssueState(..)
+    , User
+    , fetchIssues
+    )
+
+{-
+   GitHub Data Module
+
+   We're using GitHub's GraphQL API but since we're
+   doing only simple queries we not using real GraphQL library
+   and instead just simply define string query.
+
+   Nothe that GraphQL API requires authorization and thus
+   we need to hardcode unpriviliged token.
 
 -}
 
@@ -79,7 +108,7 @@ commentDecoder =
 
 
 type IssueState
-    = Opened
+    = Open
     | Closed
 
 
@@ -87,9 +116,9 @@ issueStateDecoder : Decoder IssueState
 issueStateDecoder =
     let
         fromString str =
-            case str of
-                "opened" ->
-                    Decode.succeed Opened
+            case String.toLower str of
+                "open" ->
+                    Decode.succeed Open
 
                 "closed" ->
                     Decode.succeed Closed
@@ -124,7 +153,7 @@ issueDecoder =
         |> Decode.andMap (Decode.field "updatedAt" Decode.string)
         |> Decode.andMap (Decode.field "state" issueStateDecoder)
         |> Decode.andMap (Decode.field "url" Decode.string)
-        |> Decode.andMap (Decode.field "text" Decode.string)
+        |> Decode.andMap (Decode.field "bodyText" Decode.string)
         |> Decode.andMap (Decode.at [ "labels", "nodes" ] <| Decode.list labelDecoder)
         |> Decode.andMap (Decode.field "author" userDecoder)
         |> Decode.andMap (Decode.at [ "comments", "totalCount" ] Decode.int)
@@ -155,7 +184,7 @@ query {
         labels(first: 10) {
           nodes {
             name,
-            tcolor,
+            color,
           }
         },
         author {
@@ -179,14 +208,17 @@ query {
 """
 
 
-fetchIssues : msg -> Cmd msg
+fetchIssues : (Result Http.Error (List Issue) -> msg) -> Cmd msg
 fetchIssues msg =
     Http.request
         { method = "POST"
         , headers = [ Http.header "authorization" <| "Bearer " ++ token ]
         , url = "https://api.github.com/graphql"
         , body = Http.jsonBody <| Encode.object [ ( "query", Encode.string query ) ]
-        , expect = Http.expectWhatever (\_ -> msg)
+        , expect =
+            Http.expectJson msg <|
+                Decode.at [ "data", "repository", "issues", "nodes" ] <|
+                    Decode.list issueDecoder
         , timeout = Nothing
         , tracker = Nothing
         }
