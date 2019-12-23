@@ -113,10 +113,6 @@ update msg model =
             ( { model | closedIssues = data }, Cmd.none )
 
         AlertsLoaded data ->
-            let
-                _ =
-                    Debug.log "res" data
-            in
             ( { model | alerts = data }, Cmd.none )
 
         ToggleIssue num ->
@@ -210,7 +206,7 @@ viewHeader =
             [ Html.h1 []
                 [ Html.styled Html.img
                     [ Css.width <| Css.px 150 ]
-                    [ Attrs.src "/assets/nixos-logo.svg"
+                    [ Attrs.src "assets/nixos-logo.svg"
                     ]
                     []
                 , Html.styled Html.span
@@ -436,7 +432,7 @@ view model =
     let
         headline =
             Css.batch
-                [ Css.fontSize <| Css.px 30
+                [ Css.fontSize <| Css.px 25
                 , Css.marginBottom <| Css.px 30
                 ]
 
