@@ -7,7 +7,7 @@ let
   # Latest version of elm2nix doesn't support Elm 0.19.1
   # using master as of 2019-12-23
   # issue: https://github.com/hercules-ci/elm2nix/issues/36
-  elm2nix-master = fetchFromGitHub {
+  elm2nix-head = fetchFromGitHub {
     owner = "hercules-ci";
     repo = "elm2nix";
     sha256 = "0ing539di3a3j8ynplmq520256rr9fwmf9acz1z49b1501kxhw56";
@@ -15,7 +15,7 @@ let
   };
 in {
   shell = mkShell {
-    buildInputs = with elmPackages; [ elm elm-format elm2nix-master ];
+    buildInputs = with elmPackages; [ elm elm-format elm2nix-head ];
   };
   html = import ./nix/nixos-status.nix { inherit nixpkgs; };
 }

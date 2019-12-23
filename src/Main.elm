@@ -155,7 +155,18 @@ centerContainer =
     Css.batch
         [ Css.maxWidth <| Css.px 1200
         , Css.margin2 Css.zero Css.auto
+        , Css.paddingLeft <| Css.px 15
+        , Css.paddingRight <| Css.px 15
         ]
+
+
+blue =
+    Css.rgb 0 0 238
+
+
+fancyShadow : Style
+fancyShadow =
+    Css.boxShadow3 (Css.px 5) (Css.px 5) <| Css.rgba 0 0 0 0.3
 
 
 userLink : User -> Html msg
@@ -166,18 +177,18 @@ userLink user =
 viewHeader : Html msg
 viewHeader =
     let
-        link : { url : String, text : String, color : String } -> Html msg
-        link { url, text, color } =
+        link : { url : String, text : String } -> Html msg
+        link { url, text } =
             Html.styled Html.a
                 [ Css.display Css.inlineBlock
                 , Css.marginLeft <| Css.px 12
-                , Css.color <| Css.hex color
+                , Css.color <| Css.hex "7ebae4"
                 , Css.textDecoration Css.none
                 , Css.boxSizing Css.contentBox
                 , Css.paddingTop <| Css.px 12
                 , Css.paddingBottom <| Css.px 2
                 , Css.borderBottom3 (Css.px 2) Css.solid <| Css.transparent
-                , Css.hover [ Css.borderColor <| Css.hex color ]
+                , Css.hover [ Css.borderColor <| Css.hex "7ebae4" ]
                 ]
                 [ Attrs.href <| baseUrl ++ url ]
                 [ Html.text text ]
@@ -219,8 +230,8 @@ viewHeader =
                     [ Html.text "status" ]
                 ]
             , Html.nav []
-                [ link { url = "/grafana", text = "Grafana", color = "c966fc" }
-                , link { url = "/prometheus", text = "Prometheus", color = "7ebae4" }
+                [ link { url = "/grafana", text = "Grafana" }
+                , link { url = "/prometheus", text = "Prometheus" }
                 ]
             ]
         ]
@@ -264,11 +275,32 @@ viewGroup group =
 
 viewComment : Comment -> Html msg
 viewComment comment =
-    Html.div []
-        [ Html.img
-            [ Attrs.src comment.author.avatarUrl ]
+    let
+        borderColor =
+            Css.hex "dddddd"
+    in
+    Html.styled Html.div
+        [ Css.margin <| Css.px 15
+        , Css.border3 (Css.px 1) Css.solid borderColor
+        , Css.padding4 (Css.px 10) (Css.px 15) (Css.px 15) <| Css.px 15
+        ]
+        []
+        [ Html.styled Html.header
+            [ Css.displayFlex
+            , Css.alignItems <| Css.center
+            , Css.marginBottom <| Css.px 10
+            ]
             []
-        , userLink comment.author
+            [ Html.styled Html.img
+                [ Css.display Css.block
+                , Css.borderRadius <| Css.pct 100
+                , Css.width <| Css.px 30
+                , Css.padding2 (Css.px 6) Css.zero
+                ]
+                [ Attrs.src comment.author.avatarUrl ]
+                []
+            , Html.styled Html.div [ Css.marginLeft <| Css.px 5 ] [] [ userLink comment.author ]
+            ]
         , fromMarkdown comment.text
         ]
 
@@ -284,21 +316,44 @@ viewIssue isOpen_ issue =
         ]
         []
         [ Html.styled Html.header
-            [ Css.displayFlex ]
+            [ Css.displayFlex
+            , Css.justifyContent Css.spaceBetween
+            ]
             []
-            [ Html.styled Html.h4
-                [ Css.fontWeight Css.bold ]
+            [ Html.div
                 []
-                [ Html.a [ Attrs.href issue.url ] [ Html.text <| "#" ++ String.fromInt issue.number ]
-                , Html.text " "
-                , Html.a [ Events.onClick <| ToggleIssue issue.number ]
-                    [ Html.text issue.title ]
+                [ Html.styled Html.h4
+                    [ Css.display Css.inline
+                    , Css.fontWeight Css.bold
+                    ]
+                    []
+                    [ Html.a [ Attrs.href issue.url ] [ Html.text <| "#" ++ String.fromInt issue.number ]
+                    , Html.text " "
+                    , Html.styled Html.a
+                        [ Css.color <| Css.hex "000000"
+                        , Css.cursor Css.pointer
+                        , Css.hover [ Css.textDecoration Css.underline ]
+                        ]
+                        [ Events.onClick <| ToggleIssue issue.number ]
+                        [ Html.text issue.title ]
+                    ]
+                , Html.styled Html.div
+                    [ Css.display <| Css.inline
+                    , Css.marginLeft <| Css.px 6
+                    ]
+                    []
+                    [ Html.text "reported by "
+                    , userLink issue.author
+                    ]
                 ]
             , Html.styled Html.div
-                [ Css.marginLeft <| Css.px 6 ]
+                [ Css.width <| Css.px 150
+                , Css.textAlign Css.right
+                , Css.fontSize <| Css.px 14
+                ]
                 []
-                [ Html.text "by "
-                , userLink issue.author
+                [ Html.text "comments: "
+                , Html.text <| String.fromInt issue.commentsCount
                 ]
             ]
         , if isOpen then
@@ -307,9 +362,24 @@ viewIssue isOpen_ issue =
                 , Css.borderLeft3 (Css.px 2) Css.solid <| Css.hex "546fb5"
                 , Css.margin4 (Css.px 15) Css.zero Css.zero (Css.px 15)
                 ]
-                []
+                [ Attrs.class "gh-content" ]
             <|
-                fromMarkdown issue.text
+                Html.styled Html.div
+                    [ Css.backgroundColor <| Css.hex "f4f4f4"
+                    , Css.padding <| Css.px 15
+                    , fancyShadow
+                    ]
+                    []
+                    [ fromMarkdown issue.text ]
+                    :: (if issue.commentsCount > 0 then
+                            Html.styled Html.h5
+                                [ Css.margin2 (Css.px 20) Css.zero, Css.fontWeight Css.bold ]
+                                []
+                                [ Html.text "Recent Updates:" ]
+
+                        else
+                            Html.text ""
+                       )
                     :: List.map viewComment issue.comments
 
           else
@@ -340,6 +410,7 @@ viewStatus alerts =
             , Css.marginBottom <| Css.px 20
             ]
             []
+            -- TODO: hardcoded!
             [ Html.text "All Systems Operational" ]
         , Html.styled Html.div
             [ centerContainer
@@ -396,7 +467,7 @@ view model =
                             [ Html.text "err" ]
 
                         _ ->
-                            [ Html.text "xxx" ]
+                            [ Html.text "Loading..." ]
                 , Html.styled Html.h3 [ headline ] [] [ Html.text "Past Issues:" ]
                 , Html.div [] <|
                     case model.closedIssues of
@@ -407,7 +478,7 @@ view model =
                             [ Html.text "err" ]
 
                         _ ->
-                            [ Html.text "xxx" ]
+                            [ Html.text "Loading..." ]
                 , Html.node "link" [ Attrs.href "https://fonts.googleapis.com/css?family=Open+Sans:400,700&display=swap", Attrs.rel "stylesheet" ] []
                 , Css.Reset.meyerV2
                 , Css.Reset.borderBoxV201408
@@ -415,20 +486,34 @@ view model =
                     [ GCss.body
                         [ Css.fontFamilies [ "Open Sans", "sans-serif" ]
                         ]
-                    , GCss.a [ Css.color <| Css.hex "4c6eb5" ]
-                    , GCss.pre
-                        [ Css.backgroundColor <| Css.hex "f6f8fa"
-                        , Css.padding <| Css.px 12
-                        , Css.display Css.block
-                        , Css.fontFamily Css.monospace
-                        , Css.overflowX Css.auto
-                        , Css.margin2 (Css.px 10) Css.zero
+                    , GCss.a [ Css.color blue ]
+                    , GCss.class "gh-content"
+                        [ GCss.descendants
+                            [ GCss.pre
+                                [ Css.backgroundColor <| Css.hex "1a1a1a"
+                                , Css.color <| Css.hex "ffffff"
+                                , Css.padding <| Css.px 12
+                                , Css.display Css.block
+                                , Css.fontFamily Css.monospace
+                                , Css.overflowX Css.auto
+                                , Css.margin2 (Css.px 10) Css.zero
+                                , fancyShadow
+                                ]
+                            , GCss.code
+                                []
+                            , GCss.strong [ Css.fontWeight Css.bold ]
+                            , GCss.em [ Css.fontStyle Css.italic ]
+                            , GCss.i [ Css.fontStyle Css.italic ]
+                            , GCss.blockquote
+                                [ Css.marginLeft <| Css.px 15
+                                , Css.paddingLeft <| Css.px 15
+                                , Css.borderLeft3 (Css.px 2) Css.solid <| Css.hex "dddddd"
+                                , Css.backgroundColor <| Css.hex "f4f4f4"
+                                , Css.fontStyle Css.italic
+                                ]
+                            , GCss.p [ Css.padding2 (Css.px 5) Css.zero ]
+                            ]
                         ]
-                    , GCss.code
-                        []
-                    , GCss.strong [ Css.fontWeight Css.bold ]
-                    , GCss.em [ Css.fontStyle Css.italic ]
-                    , GCss.i [ Css.fontStyle Css.italic ]
                     ]
                 ]
             ]
