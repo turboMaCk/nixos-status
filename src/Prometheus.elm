@@ -49,17 +49,18 @@ url =
 
 
 type alias Alert =
-    { summary : String
+    { url : String
     , alertName : String
     , severity : String
     , state : String -- TODO: what values can be there?
+    -- can be "pending"
     }
 
 
 alertDecoder : Decoder Alert
 alertDecoder =
     Decode.succeed Alert
-        |> Decode.andMap (Decode.at [ "annoatations", "summary" ] Decode.string)
+        |> Decode.andMap (Decode.at [ "annotations", "summary" ] Decode.string)
         |> Decode.andMap (Decode.at [ "labels", "alertname" ] Decode.string)
         |> Decode.andMap (Decode.at [ "labels", "severity" ] Decode.string)
         |> Decode.andMap (Decode.field "state" Decode.string)

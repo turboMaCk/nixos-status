@@ -238,7 +238,7 @@ query state =
                     avatarUrl
                     url
                 }
-                comments(last: 10) {
+                comments(last: 3) {
                     totalCount
                     nodes {
                         author {
