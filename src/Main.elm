@@ -462,24 +462,29 @@ viewIssue timeZone time isOpen_ issue =
                 , Css.margin4 (Css.px 15) Css.zero Css.zero (Css.px 15)
                 ]
                 [ Attrs.class "gh-content" ]
-            <|
-                Html.styled Html.div
+                [ Html.styled Html.div
                     [ Css.backgroundColor <| Css.hex "f4f4f4"
                     , Css.padding <| Css.px 15
                     , fancyShadow
                     ]
                     []
                     [ fromMarkdown issue.text ]
-                    :: (if issue.commentsCount > 0 then
-                            Html.styled Html.h5
-                                [ Css.margin2 (Css.px 20) Css.zero, Css.fontWeight Css.bold ]
-                                []
-                                [ Html.text "Recent Updates:" ]
+                , if issue.commentsCount > 0 then
+                    Html.styled Html.h5
+                        [ Css.margin2 (Css.px 20) Css.zero, Css.fontWeight Css.bold ]
+                        []
+                        [ Html.text "Recent Updates:" ]
 
-                        else
-                            Html.text ""
-                       )
-                    :: List.map (viewComment time) issue.comments
+                  else
+                    Html.text ""
+                , if issue.commentsCount > 3 then
+                    Html.a [ Attrs.href issue.url ]
+                        [ Html.text "...see older comments" ]
+
+                  else
+                    Html.text ""
+                , Html.div [] <| List.map (viewComment time) issue.comments
+                ]
 
           else
             Html.text ""
@@ -541,6 +546,10 @@ view model =
 
         isOpen i =
             Set.member i.number model.displayIssues
+
+        openIssueBtn =
+            Html.a [ Attrs.href "https://github.com/NixOS/nixpkgs/issues/new?assignees=&labels=0.kind%3A+bug&template=bug_report.md&title=" ]
+                [ Html.text "open new issue" ]
     in
     { title = "NixOS Status"
     , body =
@@ -553,20 +562,29 @@ view model =
                 , Css.marginTop <| Css.px 30
                 ]
                 []
-                [ Html.styled Html.h3
-                    [ headline ]
-                    []
-                    [ Html.text "Open Issues:" ]
-                , Html.div [] <|
-                    case model.openIssues of
-                        Success issues ->
-                            List.map (viewIssue model.timeZone model.time isOpen) issues
+                [ Html.div []
+                    [ Html.styled Html.div [ Css.marginBottom <| Css.px 30 ] [] <|
+                        case model.openIssues of
+                            Success [] ->
+                                [ Html.text "There are no open issues at the moment. "
+                                , openIssueBtn
+                                ]
 
-                        Failure err ->
-                            [ Html.text "err" ]
+                            Success issues ->
+                                [ Html.styled Html.h3
+                                    [ headline ]
+                                    []
+                                    [ Html.text "Open Issues:" ]
+                                , Html.div [] <| List.map (viewIssue model.timeZone model.time isOpen) issues
+                                , openIssueBtn
+                                ]
 
-                        _ ->
-                            [ Html.text "Loading..." ]
+                            Failure err ->
+                                [ Html.text "err" ]
+
+                            _ ->
+                                [ Html.text "Loading..." ]
+                    ]
                 , Html.styled Html.h3 [ headline ] [] [ Html.text "Past Issues:" ]
                 , Html.div [] <|
                     case model.closedIssues of
