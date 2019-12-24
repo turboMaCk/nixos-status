@@ -2,6 +2,8 @@
 
 This is unofficial status page for [NixOS](https://nixos.org).
 
+[![twitter](/assets/twitter.png)](https://twitter.com/grhmc/status/1208167878584885249)
+
 ## Build
 
 We're using Nix of course. To buid the HTML file:
