@@ -34,7 +34,7 @@ import Html.Styled as Html exposing (Html)
 import Html.Styled.Attributes as Attrs
 import Html.Styled.Events as Events
 import Markdown
-import Prometheus exposing (Alert, Group, Rule)
+import Prometheus exposing (Alert, Group, Rule, Status(..))
 import RemoteData exposing (RemoteData(..), WebData)
 import Set exposing (Set)
 import Task
@@ -161,6 +161,9 @@ update msg model =
 colors =
     { blue = Css.hex "4c6eb5"
     , purple = Css.hex "c966fc"
+    , red = Css.hex "cc0000"
+    , green = Css.hex "5db652"
+    , orange = Css.hex "b5a92b"
     }
 
 
@@ -317,17 +320,61 @@ viewHeader =
         ]
 
 
+viewAlert : Alert -> Html msg
+viewAlert alert =
+    Html.li []
+        [ Html.styled Html.a
+            [ Css.color colors.red ]
+            [ Attrs.href alert.url ]
+            [ Html.text alert.alertName ]
+        , Html.text ": "
+        , Html.text alert.severity
+        , Html.text " "
+        , Html.styled Html.span
+            [ Css.backgroundColor colors.blue
+            , Css.color <| Css.hex "ffffff"
+            , Css.padding2 Css.zero <| Css.px 4
+            , Css.borderRadius <| Css.px 2
+            ]
+            []
+            [ Html.text alert.state ]
+        ]
+
+
 viewRule : Rule -> Html msg
 viewRule rule =
     Html.li []
         [ Html.styled Html.a
-            [ Css.color <| Css.hex "4c6eb5"
+            [ Css.color colors.blue
             , Css.textDecoration Css.none
+            , Css.hover [ Css.textDecoration Css.underline ]
             ]
             [ Attrs.href rule.url ]
             [ Html.text rule.name ]
         , Html.text ": "
         , Html.text rule.health
+        , if List.isEmpty rule.alerts then
+            Html.text ""
+
+          else
+            Html.styled Html.ul
+                [ Css.fontSize <| Css.px 13
+                , Css.paddingLeft <| Css.px 15
+                ]
+                []
+            <|
+                List.map viewAlert
+                    [ { url = "foo"
+                      , alertName = "High request latency"
+                      , severity = "page"
+                      , state = "firing"
+                      }
+                    , { url = "foo"
+                      , alertName = "High request latency"
+                      , severity = "page"
+                      , state = "firing"
+                      }
+                    ]
         ]
 
 
@@ -501,6 +548,35 @@ viewStatus alerts =
                 ]
                 []
                 []
+
+        status =
+            RemoteData.map Prometheus.getStatus alerts
+
+        alert xs txt =
+            let
+                names =
+                    List.intersperse ", " xs
+                        |> String.concat
+            in
+            String.concat
+                [ names
+                , " alerts are "
+                , txt
+                ]
+
+        color =
+            case status of
+                Success Operational ->
+                    colors.green
+
+                Success (Pending _) ->
+                    colors.orange
+
+                Success (Firing _) ->
+                    colors.red
+
+                _ ->
+                    colors.blue
     in
     Html.section []
         [ Html.styled Html.h3
@@ -509,13 +585,25 @@ viewStatus alerts =
             , Css.textAlign Css.center
             , Css.padding2 (Css.px 50) Css.zero
             , Css.textTransform Css.uppercase
-            , Css.backgroundColor <| Css.hex "5db652"
+            , Css.backgroundColor color
             , Css.color <| Css.hex "ffffff"
             , Css.marginBottom <| Css.px 20
             ]
             []
-            -- TODO: hardcoded!
-            [ Html.text "All Systems Operational" ]
+            [ Html.text <|
+                case status of
+                    Success Operational ->
+                        "All Systems Operational"
+
+                    Success (Pending xs) ->
+                        alert xs "pending."
+
+                    Success (Firing xs) ->
+                        alert xs "FIRING!"
+
+                    _ ->
+                        "Performing checks..."
+            ]
         , Html.styled Html.div
             [ centerContainer
             , Css.displayFlex

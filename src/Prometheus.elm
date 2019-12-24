@@ -26,6 +26,8 @@ module Prometheus exposing
     ( Alert
     , Group
     , Rule
+    , Status(..)
+    , getStatus
     , fetchGroups
     )
 
@@ -53,6 +55,7 @@ type alias Alert =
     , alertName : String
     , severity : String
     , state : String -- TODO: what values can be there?
+
     -- can be "pending"
     }
 
@@ -107,3 +110,61 @@ fetchGroups msg =
                 Decode.at [ "data", "groups" ] <|
                     Decode.list groupDecoder
         }
+
+
+type Status
+    = Operational
+    | Pending (List String)
+    | Firing (List String)
+
+
+getGroupStatus : Group -> Status
+getGroupStatus group =
+    let
+        states =
+            List.concatMap .alerts group.rules
+                |> List.map .state
+    in
+    if List.isEmpty states then
+        Operational
+
+    else if List.all ((==) "pending") states then
+        Pending [ group.name ]
+
+    else
+        Firing [ group.name ]
+
+
+combineStatus : Status -> Status -> Status
+combineStatus s1 s2 =
+    case ( s1, s2 ) of
+        ( Operational, Operational ) ->
+            Operational
+
+        ( Firing xs, Firing ys ) ->
+            Firing <| xs ++ ys
+
+        ( Firing xs, _ ) ->
+            Firing xs
+
+        ( _, Firing xs ) ->
+            Firing xs
+
+        ( Pending xs, Pending ys ) ->
+            Pending <| xs ++ ys
+
+        ( Pending xs, _ ) ->
+            Pending xs
+
+        ( _, Pending xs ) ->
+            Pending xs
+
+
+getStatus : List Group -> Status
+getStatus groups =
+    let
+        f group acc =
+            getGroupStatus group
+                |> combineStatus acc
+    in
+    List.foldr f Operational groups
