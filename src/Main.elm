@@ -37,6 +37,9 @@ import Markdown
 import Prometheus exposing (Alert, Group, Rule)
 import RemoteData exposing (RemoteData(..), WebData)
 import Set exposing (Set)
+import Task
+import Time exposing (Posix)
+import Time.Distance
 
 
 baseUrl : String
@@ -50,7 +53,7 @@ main =
         { init = init
         , view = view
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = subscriptions
         }
 
 
@@ -60,6 +63,7 @@ main =
 
 type alias Model =
     { displayIssues : Set Int
+    , time : Posix
     , openIssues : WebData (List Issue)
     , closedIssues : WebData (List Issue)
     , alerts : WebData (List Group)
@@ -69,6 +73,7 @@ type alias Model =
 init : () -> ( Model, Cmd Msg )
 init () =
     ( { displayIssues = Set.empty
+      , time = Time.millisToPosix 0
       , openIssues = Loading
       , closedIssues = Loading
       , alerts = Loading
@@ -77,8 +82,18 @@ init () =
         [ GitHub.fetchIssues Open <| OpenIssuesLoaded << RemoteData.fromResult
         , GitHub.fetchIssues Closed <| ClosedIssuesLoaded << RemoteData.fromResult
         , Prometheus.fetchGroups <| AlertsLoaded << RemoteData.fromResult
+        , Task.perform TimeTick Time.now
         ]
     )
+
+
+
+-- Subscriptions
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Time.every 1000 TimeTick
 
 
 
@@ -91,6 +106,7 @@ type Msg
     | OpenIssuesLoaded (WebData (List Issue))
     | ClosedIssuesLoaded (WebData (List Issue))
     | ToggleIssue Int
+    | TimeTick Posix
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -127,9 +143,18 @@ update msg model =
             , Cmd.none
             )
 
+        TimeTick time ->
+            ( { model | time = time }, Cmd.none )
+
 
 
 -- View
+
+
+colors =
+    { blue = Css.hex "4c6eb5"
+    , purple = Css.hex "c966fc"
+    }
 
 
 {-| Configured toMarkdown function
@@ -154,10 +179,6 @@ centerContainer =
         , Css.paddingLeft <| Css.px 15
         , Css.paddingRight <| Css.px 15
         ]
-
-
-blue =
-    Css.rgb 0 0 238
 
 
 fancyShadow : Style
@@ -206,7 +227,7 @@ viewHeader =
             [ Html.h1 []
                 [ Html.styled Html.img
                     [ Css.width <| Css.px 150 ]
-                    [ Attrs.src "assets/nixos-logo.svg"
+                    [ Attrs.src "/assets/nixos-logo.svg"
                     ]
                     []
                 , Html.styled Html.span
@@ -264,20 +285,19 @@ viewGroup group =
             ]
             []
             [ Html.text group.name ]
-        , Html.styled Html.ul [ Css.paddingLeft <| Css.px 50, Css.listStyle Css.disc ] [] <|
+        , Html.styled Html.ul
+            [ Css.paddingLeft <| Css.px 50, Css.listStyle Css.disc ]
+            []
+          <|
             List.map viewRule group.rules
         ]
 
 
-viewComment : Comment -> Html msg
-viewComment comment =
-    let
-        borderColor =
-            Css.hex "dddddd"
-    in
+viewComment : Posix -> Comment -> Html msg
+viewComment currentTime comment =
     Html.styled Html.div
         [ Css.margin <| Css.px 15
-        , Css.border3 (Css.px 1) Css.solid borderColor
+        , Css.border3 (Css.px 1) Css.solid <| Css.hex "dddddd"
         , Css.padding4 (Css.px 10) (Css.px 15) (Css.px 15) <| Css.px 15
         ]
         []
@@ -295,14 +315,24 @@ viewComment comment =
                 ]
                 [ Attrs.src comment.author.avatarUrl ]
                 []
-            , Html.styled Html.div [ Css.marginLeft <| Css.px 5 ] [] [ userLink comment.author ]
+            , Html.styled Html.div
+                [ Css.marginLeft <| Css.px 5 ]
+                []
+                [ userLink comment.author
+                , Html.styled Html.small
+                    [ Css.fontSize <| Css.px 13
+                    , Css.marginLeft <| Css.px 5
+                    ]
+                    []
+                    [ Html.text <| Time.Distance.inWords comment.createAt currentTime ]
+                ]
             ]
         , fromMarkdown comment.text
         ]
 
 
-viewIssue : (Issue -> Bool) -> Issue -> Html Msg
-viewIssue isOpen_ issue =
+viewIssue : Posix -> (Issue -> Bool) -> Issue -> Html Msg
+viewIssue time isOpen_ issue =
     let
         isOpen =
             isOpen_ issue
@@ -323,7 +353,8 @@ viewIssue isOpen_ issue =
                     , Css.fontWeight Css.bold
                     ]
                     []
-                    [ Html.a [ Attrs.href issue.url ] [ Html.text <| "#" ++ String.fromInt issue.number ]
+                    [ Html.a [ Attrs.href issue.url ]
+                        [ Html.text <| "#" ++ String.fromInt issue.number ]
                     , Html.text " "
                     , Html.styled Html.a
                         [ Css.color <| Css.hex "000000"
@@ -340,12 +371,18 @@ viewIssue isOpen_ issue =
                     []
                     [ Html.text "reported by "
                     , userLink issue.author
+                    , Html.styled Html.small
+                        [ Css.marginLeft <| Css.px 5
+                        , Css.fontSize <| Css.px 13
+                        ]
+                        []
+                        [ Html.text <| Time.Distance.inWords issue.createdAt time ]
                     ]
                 ]
             , Html.styled Html.div
                 [ Css.width <| Css.px 150
                 , Css.textAlign Css.right
-                , Css.fontSize <| Css.px 14
+                , Css.fontSize <| Css.px 13
                 ]
                 []
                 [ Html.text "comments: "
@@ -376,7 +413,7 @@ viewIssue isOpen_ issue =
                         else
                             Html.text ""
                        )
-                    :: List.map viewComment issue.comments
+                    :: List.map (viewComment time) issue.comments
 
           else
             Html.text ""
@@ -457,7 +494,7 @@ view model =
                 , Html.div [] <|
                     case model.openIssues of
                         Success issues ->
-                            List.map (viewIssue isOpen) issues
+                            List.map (viewIssue model.time isOpen) issues
 
                         Failure err ->
                             [ Html.text "err" ]
@@ -468,21 +505,25 @@ view model =
                 , Html.div [] <|
                     case model.closedIssues of
                         Success issues ->
-                            List.map (viewIssue isOpen) issues
+                            List.map (viewIssue model.time isOpen) issues
 
                         Failure err ->
                             [ Html.text "err" ]
 
                         _ ->
                             [ Html.text "Loading..." ]
-                , Html.node "link" [ Attrs.href "https://fonts.googleapis.com/css?family=Open+Sans:400,700&display=swap", Attrs.rel "stylesheet" ] []
+                , Html.node "link"
+                    [ Attrs.href "https://fonts.googleapis.com/css?family=Open+Sans:400,700&display=swap"
+                    , Attrs.rel "stylesheet"
+                    ]
+                    []
                 , Css.Reset.meyerV2
                 , Css.Reset.borderBoxV201408
                 , GCss.global
                     [ GCss.body
                         [ Css.fontFamilies [ "Open Sans", "sans-serif" ]
                         ]
-                    , GCss.a [ Css.color blue ]
+                    , GCss.a [ Css.color colors.blue ]
                     , GCss.class "gh-content"
                         [ GCss.descendants
                             [ GCss.pre

@@ -46,6 +46,7 @@ import Http
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Extra as Decode
 import Json.Encode as Encode
+import Time exposing (Posix)
 
 
 
@@ -116,6 +117,7 @@ labelDecoder =
 type alias Comment =
     { text : String
     , author : User
+    , createAt : Posix
     }
 
 
@@ -124,6 +126,7 @@ commentDecoder =
     Decode.succeed Comment
         |> Decode.andMap (Decode.field "bodyHTML" Decode.string)
         |> Decode.andMap (Decode.field "author" userDecoder)
+        |> Decode.andMap (Decode.field "createdAt" Decode.datetime)
 
 
 type IssueState
@@ -161,8 +164,8 @@ issueStateToString state =
 type alias Issue =
     { number : Int
     , title : String
-    , createdAt : String -- TODO: date
-    , updatedAt : String -- TODO: date
+    , createdAt : Posix
+    , updatedAt : Posix
     , state : IssueState
     , url : String
     , text : String
@@ -178,8 +181,8 @@ issueDecoder =
     Decode.succeed Issue
         |> Decode.andMap (Decode.field "number" Decode.int)
         |> Decode.andMap (Decode.field "title" Decode.string)
-        |> Decode.andMap (Decode.field "createdAt" Decode.string)
-        |> Decode.andMap (Decode.field "updatedAt" Decode.string)
+        |> Decode.andMap (Decode.field "createdAt" Decode.datetime)
+        |> Decode.andMap (Decode.field "updatedAt" Decode.datetime)
         |> Decode.andMap (Decode.field "state" issueStateDecoder)
         |> Decode.andMap (Decode.field "url" Decode.string)
         |> Decode.andMap (Decode.field "bodyHTML" Decode.string)
@@ -247,6 +250,7 @@ query state =
                             url
                         }
                         bodyHTML
+                        createdAt
                     }
                 }
             }
@@ -268,8 +272,9 @@ fetchIssues state msg =
                 Encode.object [ ( "query", Encode.string <| query state ) ]
         , expect =
             Http.expectJson msg <|
-                Decode.at [ "data", "repository", "issues", "nodes" ] <|
-                    Decode.list issueDecoder
+                Decode.map List.reverse <|
+                    Decode.at [ "data", "repository", "issues", "nodes" ] <|
+                        Decode.list issueDecoder
         , timeout = Nothing
         , tracker = Nothing
         }

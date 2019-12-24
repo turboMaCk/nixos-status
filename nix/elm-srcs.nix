@@ -1,5 +1,10 @@
 {
 
+      "gingko/time-distance" = {
+        sha256 = "1lm91qy9pjf2n21irlf6p9pn2zgmhpvgvbjs15yf53961pdglaz5";
+        version = "2.2.0";
+      };
+
       "krisajenkins/remotedata" = {
         sha256 = "0m5bk0qhsjv14vajqrkph386696pnhj5rn51kgma8lwyvvx9ihw1";
         version = "6.0.1";
@@ -50,6 +55,11 @@
         version = "2.0.0";
       };
 
+      "elm/time" = {
+        sha256 = "0vch7i86vn0x8b850w1p69vplll1bnbkp8s383z7pinyg94cm2z1";
+        version = "1.0.0";
+      };
+
       "BrianHicks/elm-css-reset" = {
         sha256 = "1cbdhm9pmzrb6ch2wfrxqma5h6cska557abg85bbdk4m88fy7ry9";
         version = "1.0.1";
@@ -73,11 +83,6 @@
       "elm/parser" = {
         sha256 = "0a3cxrvbm7mwg9ykynhp7vjid58zsw03r63qxipxp3z09qks7512";
         version = "1.1.0";
-      };
-
-      "elm/time" = {
-        sha256 = "0vch7i86vn0x8b850w1p69vplll1bnbkp8s383z7pinyg94cm2z1";
-        version = "1.0.0";
       };
 
       "Skinney/murmur3" = {
