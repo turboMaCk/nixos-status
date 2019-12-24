@@ -9,7 +9,7 @@ This is unofficial status page for [NixOS](https://nixos.org).
 We're using Nix of course. To buid the HTML file:
 
 ```
-$ nix-build -A html
+$ nix-build -A www
 ```
 
 And open the file:
@@ -17,13 +17,13 @@ And open the file:
 Linux:
 
 ```
-$ xdg-open result/Main.html
+$ xdg-open result/www/index.html
 ```
 
 MacOS:
 
 ```
-$ open result/Main.html
+$ open result/www/index.html
 ```
 
 ## Development

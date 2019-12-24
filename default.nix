@@ -15,7 +15,7 @@ let
     sha256 = "0ing539di3a3j8ynplmq520256rr9fwmf9acz1z49b1501kxhw56";
     rev = "38b61e45a860d7512f2ec2e458cf01c688835ddf";
   }) { inherit pkgs; };
-in {
+in rec {
   shell = mkShell {
     buildInputs = with elmPackages; [
       elm
@@ -23,5 +23,19 @@ in {
       elm2nix-master
     ];
   };
-  html = import ./nix/nixos-status.nix { inherit nixpkgs; };
+
+  elm-app = import ./nix/nixos-status.nix { inherit nixpkgs; };
+
+  www = stdenv.mkDerivation {
+    name = "nixos-status";
+    version = "0.1.0";
+
+    src = ./assets;
+
+    installPhase = ''
+      mkdir -p $out/www/assets
+      cp ${elm-app}/Main.html $out/www/index.html
+      cp nixos-logo.svg $out/www/assets/
+    '';
+  };
 }
