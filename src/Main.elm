@@ -38,7 +38,7 @@ import Prometheus exposing (Alert, Group, Rule)
 import RemoteData exposing (RemoteData(..), WebData)
 import Set exposing (Set)
 import Task
-import Time exposing (Posix)
+import Time exposing (Month(..), Posix, Zone)
 import Time.Distance
 
 
@@ -64,6 +64,7 @@ main =
 type alias Model =
     { displayIssues : Set Int
     , time : Posix
+    , timeZone : Zone
     , openIssues : WebData (List Issue)
     , closedIssues : WebData (List Issue)
     , alerts : WebData (List Group)
@@ -74,6 +75,7 @@ init : () -> ( Model, Cmd Msg )
 init () =
     ( { displayIssues = Set.empty
       , time = Time.millisToPosix 0
+      , timeZone = Time.utc
       , openIssues = Loading
       , closedIssues = Loading
       , alerts = Loading
@@ -83,6 +85,7 @@ init () =
         , GitHub.fetchIssues Closed <| ClosedIssuesLoaded << RemoteData.fromResult
         , Prometheus.fetchGroups <| AlertsLoaded << RemoteData.fromResult
         , Task.perform TimeTick Time.now
+        , Task.perform SetTimeZone Time.here
         ]
     )
 
@@ -106,6 +109,7 @@ type Msg
     | OpenIssuesLoaded (WebData (List Issue))
     | ClosedIssuesLoaded (WebData (List Issue))
     | ToggleIssue Int
+    | SetTimeZone Zone
     | TimeTick Posix
 
 
@@ -146,6 +150,9 @@ update msg model =
         TimeTick time ->
             ( { model | time = time }, Cmd.none )
 
+        SetTimeZone zone ->
+            ( { model | timeZone = zone }, Cmd.none )
+
 
 
 -- View
@@ -155,6 +162,62 @@ colors =
     { blue = Css.hex "4c6eb5"
     , purple = Css.hex "c966fc"
     }
+
+
+formatTime : Zone -> Posix -> String
+formatTime zone time =
+    let
+        day =
+            Time.toDay zone time
+
+        month =
+            case Time.toMonth zone time of
+                Jan ->
+                    "01"
+
+                Feb ->
+                    "02"
+
+                Mar ->
+                    "03"
+
+                Apr ->
+                    "04"
+
+                May ->
+                    "05"
+
+                Jun ->
+                    "06"
+
+                Jul ->
+                    "07"
+
+                Aug ->
+                    "08"
+
+                Sep ->
+                    "09"
+
+                Oct ->
+                    "10"
+
+                Nov ->
+                    "11"
+
+                Dec ->
+                    "12"
+
+        year =
+            Time.toYear zone time
+    in
+    String.concat
+        [ String.padLeft 2 '0' <| String.fromInt day
+        , "/"
+        , month
+        , "/"
+        , String.fromInt <| year - 2000
+        ]
 
 
 {-| Configured toMarkdown function
@@ -331,24 +394,33 @@ viewComment currentTime comment =
         ]
 
 
-viewIssue : Posix -> (Issue -> Bool) -> Issue -> Html Msg
-viewIssue time isOpen_ issue =
+viewIssue : Zone -> Posix -> (Issue -> Bool) -> Issue -> Html Msg
+viewIssue timeZone time isOpen_ issue =
     let
         isOpen =
             isOpen_ issue
     in
     Html.styled Html.article
-        [ Css.margin2 (Css.px 30) <| Css.px 50
+        [ Css.margin4 (Css.px 30) (Css.px 50) (Css.px 30) (Css.px 75)
         ]
         []
         [ Html.styled Html.header
-            [ Css.displayFlex
+            [ Css.position Css.relative
+            , Css.displayFlex
             , Css.justifyContent Css.spaceBetween
             ]
             []
             [ Html.div
                 []
-                [ Html.styled Html.h4
+                [ Html.styled Html.div
+                    [ Css.position Css.absolute
+                    , Css.top <| Css.px 2
+                    , Css.left <| Css.px -62
+                    , Css.fontSize <| Css.px 13
+                    ]
+                    []
+                    [ Html.text <| formatTime timeZone issue.createdAt ]
+                , Html.styled Html.h4
                     [ Css.display Css.inline
                     , Css.fontWeight Css.bold
                     ]
@@ -371,12 +443,6 @@ viewIssue time isOpen_ issue =
                     []
                     [ Html.text "reported by "
                     , userLink issue.author
-                    , Html.styled Html.small
-                        [ Css.marginLeft <| Css.px 5
-                        , Css.fontSize <| Css.px 13
-                        ]
-                        []
-                        [ Html.text <| Time.Distance.inWords issue.createdAt time ]
                     ]
                 ]
             , Html.styled Html.div
@@ -494,7 +560,7 @@ view model =
                 , Html.div [] <|
                     case model.openIssues of
                         Success issues ->
-                            List.map (viewIssue model.time isOpen) issues
+                            List.map (viewIssue model.timeZone model.time isOpen) issues
 
                         Failure err ->
                             [ Html.text "err" ]
@@ -505,7 +571,7 @@ view model =
                 , Html.div [] <|
                     case model.closedIssues of
                         Success issues ->
-                            List.map (viewIssue model.time isOpen) issues
+                            List.map (viewIssue model.timeZone model.time isOpen) issues
 
                         Failure err ->
                             [ Html.text "err" ]
