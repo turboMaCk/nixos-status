@@ -363,18 +363,7 @@ viewRule rule =
                 ]
                 []
             <|
-                List.map viewAlert
-                    [ { url = "foo"
-                      , alertName = "High request latency"
-                      , severity = "page"
-                      , state = "firing"
-                      }
-                    , { url = "foo"
-                      , alertName = "High request latency"
-                      , severity = "page"
-                      , state = "firing"
-                      }
-                    ]
+                List.map viewAlert rule.alerts
         ]
 
 
