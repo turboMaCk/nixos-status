@@ -52,6 +52,7 @@ url =
 
 type alias Alert =
     { url : String
+    , name : String
     , alertName : String
     , severity : String
     , state : String -- TODO: what values can be there?
@@ -64,6 +65,7 @@ alertDecoder : Decoder Alert
 alertDecoder =
     Decode.succeed Alert
         |> Decode.andMap (Decode.at [ "annotations", "summary" ] Decode.string)
+        |> Decode.andMap (Decode.at [ "labels", "name" ] Decode.string)
         |> Decode.andMap (Decode.at [ "labels", "alertname" ] Decode.string)
         |> Decode.andMap (Decode.at [ "labels", "severity" ] Decode.string)
         |> Decode.andMap (Decode.field "state" Decode.string)

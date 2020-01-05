@@ -6486,9 +6486,9 @@ var $author$project$Prometheus$Rule = F4(
 	function (url, health, name, alerts) {
 		return {Y: alerts, cI: health, cT: name, ba: url};
 	});
-var $author$project$Prometheus$Alert = F4(
-	function (url, alertName, severity, state) {
-		return {ci: alertName, c6: severity, c8: state, ba: url};
+var $author$project$Prometheus$Alert = F5(
+	function (url, name, alertName, severity, state) {
+		return {ci: alertName, cT: name, c6: severity, c8: state, ba: url};
 	});
 var $elm$json$Json$Decode$string = _Json_decodeString;
 var $author$project$Prometheus$alertDecoder = A2(
@@ -6513,9 +6513,16 @@ var $author$project$Prometheus$alertDecoder = A2(
 				A2(
 					$elm$json$Json$Decode$at,
 					_List_fromArray(
-						['annotations', 'summary']),
+						['labels', 'name']),
 					$elm$json$Json$Decode$string),
-				$elm$json$Json$Decode$succeed($author$project$Prometheus$Alert)))));
+				A2(
+					$elm_community$json_extra$Json$Decode$Extra$andMap,
+					A2(
+						$elm$json$Json$Decode$at,
+						_List_fromArray(
+							['annotations', 'summary']),
+						$elm$json$Json$Decode$string),
+					$elm$json$Json$Decode$succeed($author$project$Prometheus$Alert))))));
 var $author$project$Prometheus$ruleDecoder = A2(
 	$elm_community$json_extra$Json$Decode$Extra$andMap,
 	A2(
@@ -12369,6 +12376,7 @@ var $rtfeldman$elm_css$Css$uppercase = {W: 0, B: 'uppercase'};
 var $rtfeldman$elm_css$Css$capitalize = {W: 0, B: 'capitalize'};
 var $rtfeldman$elm_css$Css$disc = {e: 0, d: 0, B: 'disc'};
 var $rtfeldman$elm_css$Html$Styled$ul = $rtfeldman$elm_css$Html$Styled$node('ul');
+var $rtfeldman$elm_css$Css$decimal = {e: 0, d: 0, B: 'decimal'};
 var $rtfeldman$elm_css$Html$Styled$li = $rtfeldman$elm_css$Html$Styled$node('li');
 var $author$project$Main$viewAlert = function (alert) {
 	return A2(
@@ -12389,11 +12397,9 @@ var $author$project$Main$viewAlert = function (alert) {
 					]),
 				_List_fromArray(
 					[
-						$rtfeldman$elm_css$Html$Styled$text(alert.ci)
+						$rtfeldman$elm_css$Html$Styled$text(alert.cT)
 					])),
 				$rtfeldman$elm_css$Html$Styled$text(': '),
-				$rtfeldman$elm_css$Html$Styled$text(alert.c6),
-				$rtfeldman$elm_css$Html$Styled$text(' '),
 				A4(
 				$rtfeldman$elm_css$Html$Styled$styled,
 				$rtfeldman$elm_css$Html$Styled$span,
@@ -12443,8 +12449,6 @@ var $author$project$Main$viewRule = function (rule) {
 					[
 						$rtfeldman$elm_css$Html$Styled$text(rule.cT)
 					])),
-				$rtfeldman$elm_css$Html$Styled$text(': '),
-				$rtfeldman$elm_css$Html$Styled$text(rule.cI),
 				$elm$core$List$isEmpty(rule.Y) ? $rtfeldman$elm_css$Html$Styled$text('') : A4(
 				$rtfeldman$elm_css$Html$Styled$styled,
 				$rtfeldman$elm_css$Html$Styled$ul,
@@ -12453,7 +12457,8 @@ var $author$project$Main$viewRule = function (rule) {
 						$rtfeldman$elm_css$Css$fontSize(
 						$rtfeldman$elm_css$Css$px(13)),
 						$rtfeldman$elm_css$Css$paddingLeft(
-						$rtfeldman$elm_css$Css$px(15))
+						$rtfeldman$elm_css$Css$px(15)),
+						$rtfeldman$elm_css$Css$listStyle($rtfeldman$elm_css$Css$decimal)
 					]),
 				_List_Nil,
 				A2($elm$core$List$map, $author$project$Main$viewAlert, rule.Y))

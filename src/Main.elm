@@ -326,10 +326,8 @@ viewAlert alert =
         [ Html.styled Html.a
             [ Css.color colors.red ]
             [ Attrs.href alert.url ]
-            [ Html.text alert.alertName ]
+            [ Html.text alert.name ]
         , Html.text ": "
-        , Html.text alert.severity
-        , Html.text " "
         , Html.styled Html.span
             [ Css.backgroundColor colors.blue
             , Css.color <| Css.hex "ffffff"
@@ -351,8 +349,6 @@ viewRule rule =
             ]
             [ Attrs.href rule.url ]
             [ Html.text rule.name ]
-        , Html.text ": "
-        , Html.text rule.health
         , if List.isEmpty rule.alerts then
             Html.text ""
 
@@ -360,6 +356,7 @@ viewRule rule =
             Html.styled Html.ul
                 [ Css.fontSize <| Css.px 13
                 , Css.paddingLeft <| Css.px 15
+                , Css.listStyle <| Css.decimal
                 ]
                 []
             <|
