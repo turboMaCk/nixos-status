@@ -293,7 +293,7 @@ viewHeader =
             [ Html.h1 []
                 [ Html.styled Html.img
                     [ Css.width <| Css.px 150 ]
-                    [ Attrs.src "/assets/nixos-logo.svg"
+                    [ Attrs.src "assets/nixos-logo.svg"
                     ]
                     []
                 , Html.styled Html.span
